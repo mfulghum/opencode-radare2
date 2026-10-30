@@ -12,11 +12,19 @@ export interface R2CommandInput {
   delivery: "steer" | "queue"
 }
 
-/**
- * Build the guided-analysis prompt sent into the session for /r2 <target> [focus].
- * `target` must already be resolved and known to exist.
- */
-export function buildR2Prompt(target: string, focus: string): string {
+export interface R2CommandSpec {
+  /** Full command name, e.g. "r2:load". */
+  name: string
+  description: string
+  /** Usage hint shown when required input is missing. */
+  usage: string
+  /** When true, the first token must resolve to an existing file. */
+  needsFile: boolean
+  /** Build the prompt injected into the session. target is absolute when needsFile. */
+  build: (target: string | undefined, focus: string) => string
+}
+
+function reportPrompt(target: string, focus: string): string {
   const focusLine = focus ? `\nFocus areas from the user: ${focus}\n` : ""
   return (
     `Analyze the binary \`${target}\` using the r2mcp MCP tools and produce a concise reverse-engineering report.` +
@@ -35,40 +43,97 @@ export function buildR2Prompt(target: string, focus: string): string {
   )
 }
 
-const USAGE = "Usage: /r2 <path-to-binary> [focus notes]"
+export const R2_COMMANDS: readonly R2CommandSpec[] = [
+  {
+    name: "r2:load",
+    description: "Open a binary in r2mcp and show a quick overview: /r2:load <path>",
+    usage: "Usage: /r2:load <path-to-binary>",
+    needsFile: true,
+    build: (target, focus) =>
+      `Open the binary \`${target}\` with the r2mcp MCP tools. Call open_file with file_path "${target}" ` +
+      "before any other r2mcp tool, then give a brief overview using show_info and list_entrypoints. " +
+      "Do not run full analysis yet — wait for /r2:analyze." +
+      (focus ? `\nUser notes: ${focus}` : ""),
+  },
+  {
+    name: "r2:analyze",
+    description: "Run radare2 analysis on the loaded file: /r2:analyze [level] [focus notes]",
+    usage: "Usage: /r2:analyze [level 0-2] [focus notes]",
+    needsFile: false,
+    build: (_target, focus) => {
+      let level = 2
+      let notes = focus
+      const first = focus.split(/\s+/)[0]
+      if (/^[0-2]$/.test(first)) {
+        level = Number(first)
+        notes = focus.slice(first.length).trim()
+      }
+      return (
+        `Run analysis on the file currently open in r2mcp (open_file was already called). ` +
+        `Use the analyze tool with level ${level}, then summarize: number of functions found, ` +
+        "entry points, and the most interesting imports and strings. " +
+        "Leave the file open for follow-up commands." +
+        (notes ? `\nFocus areas from the user: ${notes}` : "")
+      )
+    },
+  },
+  {
+    name: "r2:report",
+    description: "Full guided RE workflow on a binary: /r2:report <path> [focus notes]",
+    usage: "Usage: /r2:report <path-to-binary> [focus notes]",
+    needsFile: true,
+    build: (target, focus) => reportPrompt(target as string, focus),
+  },
+  {
+    name: "r2:close",
+    description: "Close the currently open file in r2mcp",
+    usage: "Usage: /r2:close",
+    needsFile: false,
+    build: () =>
+      "Close the currently open file using the r2mcp close_file tool and confirm it was closed.",
+  },
+]
 
 /**
- * Executor for the /r2 command. Submits a guided analysis prompt into the
- * current session. Relative targets resolve against the plugin location.
+ * Executor for a /r2:* subcommand. Submits the built prompt into the current
+ * session; reports usage errors as synthetic messages. Relative file targets
+ * resolve against the plugin location directory.
  */
-export async function executeR2(
+export async function executeR2Command(
+  spec: R2CommandSpec,
   input: R2CommandInput,
   session: R2Session,
   directory: string,
 ): Promise<void> {
   let raw = input.prompt.text.trim()
   // Be defensive: some clients submit the raw input including the command token.
-  if (raw === "/r2" || raw.startsWith("/r2 ")) raw = raw.slice(3).trim()
-  if (!raw) {
-    await session.synthetic({ sessionID: input.sessionID, text: USAGE })
-    return
-  }
+  const token = `/${spec.name}`
+  if (raw === token || raw.startsWith(`${token} `)) raw = raw.slice(token.length).trim()
 
-  const [targetRaw, ...focusParts] = raw.split(/\s+/)
-  const target = isAbsolute(targetRaw) ? targetRaw : resolve(directory, targetRaw)
+  let target: string | undefined
+  let focusTokens = raw.split(/\s+/).filter(Boolean)
 
-  if (!existsSync(target)) {
-    await session.synthetic({
-      sessionID: input.sessionID,
-      text: `\`${targetRaw}\` does not exist.\n${USAGE}`,
-    })
-    return
+  if (spec.needsFile) {
+    const targetRaw = focusTokens[0]
+    if (!targetRaw) {
+      await session.synthetic({ sessionID: input.sessionID, text: spec.usage })
+      return
+    }
+    focusTokens = focusTokens.slice(1)
+    target = isAbsolute(targetRaw) ? targetRaw : resolve(directory, targetRaw)
+    if (!existsSync(target)) {
+      await session.synthetic({
+        sessionID: input.sessionID,
+        text: `\`${targetRaw}\` does not exist.\n${spec.usage}`,
+      })
+      return
+    }
   }
 
   await session.prompt({
     ...input.prompt,
     sessionID: input.sessionID,
-    text: buildR2Prompt(target, focusParts.join(" ")),
+    text: spec.build(target, focusTokens.join(" ")),
     delivery: input.delivery,
   })
 }

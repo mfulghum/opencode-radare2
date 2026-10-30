@@ -44,13 +44,17 @@ const cfg = registered[0][1] as { type: string; command: string[] }
 assert.equal(cfg.type, "local")
 assert.ok(cfg.command[0].endsWith("r2mcp"), "command should point at r2mcp binary")
 
-// /r2 command registered with description and executor
+// /r2:* command namespace registered
 assert.ok(commandCb, "setup should register a command transform")
 commandCb!({ add: (def: any) => commands.push(def) })
-assert.equal(commands.length, 1, "one command registered")
-assert.equal(commands[0].name, "r2")
-assert.ok(String(commands[0].description).includes("/r2"), "description documents usage")
-assert.equal(typeof commands[0].execute, "function")
+assert.deepEqual(
+  commands.map((c: any) => c.name),
+  ["r2:load", "r2:analyze", "r2:report", "r2:close"],
+  "all namespaced commands registered")
+for (const cmd of commands) {
+  assert.ok(String(cmd.description).length > 0, `${cmd.name} has description`)
+  assert.equal(typeof cmd.execute, "function", `${cmd.name} has executor`)
+}
 
 // binary missing -> no mcp transform, no commands
 registered.length = 0
