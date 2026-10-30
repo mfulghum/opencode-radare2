@@ -13,10 +13,7 @@ export default Plugin.define({
 
     const binary = detectR2mcp(override)
     if (!binary) {
-      console.warn(
-        "[opencode-radare2] r2mcp binary not found; install radare2-mcp or set options.binary. " +
-          "MCP server not registered.",
-      )
+      // r2mcp not installed; silently skip registration.
       return
     }
 
