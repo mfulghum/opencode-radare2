@@ -1,0 +1,22 @@
+{
+  "name": "opencode-radare2",
+  "version": "0.1.0",
+  "description": "OpenCode plugin that auto-configures the radare2 MCP server (r2mcp)",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "files": [
+    "index.ts",
+    "src"
+  ],
+  "scripts": {
+    "test": "tsx test/detect.test.ts && tsx test/plugin.test.ts"
+  },
+  "dependencies": {
+    "@opencode/plugin": "latest"
+  },
+  "devDependencies": {
+    "tsx": "^4"
+  }
+}
