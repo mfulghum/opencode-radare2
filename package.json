@@ -12,7 +12,7 @@
     "src"
   ],
   "scripts": {
-    "test": "tsx test/detect.test.ts && tsx test/plugin.test.ts"
+    "test": "tsx test/detect.test.ts && tsx test/commands.test.ts && tsx test/plugin.test.ts"
   },
   "dependencies": {
     "@opencode/plugin": "latest"

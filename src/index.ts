@@ -1,5 +1,6 @@
 import { Plugin } from "@opencode/plugin"
 import { detectR2mcp } from "./detect.ts"
+import { executeR2 } from "./commands.ts"
 
 const SERVER_NAME = "r2mcp"
 
@@ -31,6 +32,17 @@ export default Plugin.define({
       editor.set(SERVER_NAME, {
         type: "local",
         command: [binary],
+      })
+    })
+
+    const directory = ctx.location.directory
+    await ctx.command.transform((editor) => {
+      editor.add({
+        name: "r2",
+        description: "Analyze a binary with radare2: /r2 <path> [focus notes]",
+        execute: async (input) => {
+          await executeR2(input, ctx.session, directory)
+        },
       })
     })
   },

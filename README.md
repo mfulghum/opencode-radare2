@@ -9,6 +9,21 @@ On load, the plugin:
 1. Detects the `r2mcp` binary (PATH, then `/usr/local/bin`, `/usr/bin`, `~/.local/bin`).
 2. Registers it as a local MCP server named `r2mcp` via `ctx.mcp.transform`, exposing all radare2 tools (analysis, decompilation, xrefs, …).
 3. If an `r2mcp` server is already configured (e.g. in your global config), it leaves the configuration alone and just ensures it is enabled.
+4. Adds a `/r2` slash command for guided binary analysis.
+
+## Commands
+
+```
+/r2 <path-to-binary> [focus notes]
+```
+
+Submits a guided reverse-engineering workflow into the current session: open the
+file, run analysis, triage functions/imports/strings, decompile entry points,
+and produce a structured report. Relative paths resolve against the session
+directory; trailing free text is passed to the model as focus guidance
+(e.g. `/r2 ./firmware.elf look at the crypto routines`).
+
+If `r2mcp` is not installed, the plugin registers nothing — no MCP server and no commands.
 
 ## Install
 
