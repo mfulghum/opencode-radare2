@@ -47,6 +47,10 @@ The `R2MCP_BIN` environment variable is honored as an override as well.
 - OpenCode V2
 - [radare2](https://github.com/radareorg/radare2) and [r2mcp](https://github.com/radareorg/radare2-mcp) installed
 
+## License
+
+MIT
+
 ## Development
 
 ```sh

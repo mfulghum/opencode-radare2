@@ -1,6 +1,7 @@
 {
   "name": "opencode-radare2",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "OpenCode plugin that auto-configures the radare2 MCP server (r2mcp)",
   "type": "module",
   "exports": {
